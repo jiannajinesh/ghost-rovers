@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghost Rovers</title>
+<meta name="description" content="Ghost Rovers: meet 20 NASA machines left on the Moon, on Mars and in deep space. A NASA Space Apps Challenge 2026 project.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one dark mission-control world. Tabs on top; a spinning 3D world on the left; host and machine list on the right; each machine opens a diary card. */
+:root{
+  --space:#0b1026;
+  --panel:#151b3d;
+  --panel-2:#1e2654;
+  --ink:#f3f1ff;
+  --muted:#aab0d6;
+  --moon:#ffd166;
+  --mars:#ff7a4d;
+  --deep:#7fd4ff;
+  --good:#5be08f;
+  --line:#2c356e;
+  --display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --body:"Nunito","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--space);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5}
+body{background:radial-gradient(1200px 600px at 80% -10%,#1b2460 0%,transparent 60%),var(--space);min-height:100%}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+a{color:var(--deep)}
+button{font-family:var(--display);cursor:pointer}
+:focus-visible{outline:3px solid var(--moon);outline-offset:2px}
+.ic{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.wrap{max-width:1220px;margin:0 auto;padding:16px}
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:6px 0 14px}
+.brand{display:flex;gap:12px;align-items:center}
+.brand svg.logo{width:58px;height:58px;flex:none}
+.brand h1{font-size:clamp(28px,5vw,44px);letter-spacing:.5px}
+.brand h1 span{color:var(--moon)}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:15px}
+.topctl{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.soundbtn{display:flex;align-items:center;gap:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:16px;padding:10px 14px;font-size:16px;font-weight:600}
+.soundbtn[aria-pressed="false"]{opacity:.75}
+.counter{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:10px 14px;min-width:220px}
+.counter b{font-family:var(--display);font-size:20px;font-variant-numeric:tabular-nums}
+.bar{height:10px;background:#0006;border-radius:99px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--moon),var(--mars),var(--deep));transition:width .4s}
+nav.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+nav.tabs button{display:flex;align-items:center;gap:7px;border:2px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 15px;border-radius:14px;font-size:16.5px;font-weight:600}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--space);border-color:var(--ink)}
+nav.tabs button.game[aria-selected="false"]{border-color:var(--mars);color:var(--mars)}
+.hintbar{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--muted);font-size:14px;margin:0 0 12px}
+.hintbar span{display:inline-flex;gap:6px;align-items:center}
+.view{display:none}
+.view.on{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(270px,1fr);gap:16px}
+#v-time.on,#v-game.on,#v-about.on{display:block}
+@media (max-width:860px){.view.on{grid-template-columns:1fr}}
+.stage{position:relative;background:radial-gradient(circle at 50% 45%,#141c48,#070a1c 75%);border:2px solid var(--line);border-radius:22px;overflow:hidden;aspect-ratio:1/1;max-height:640px;width:100%;touch-action:none}
+#v-deep .stage{aspect-ratio:16/11}
+.stage canvas{display:block;width:100%;height:100%}
+.stage .label{position:absolute;left:12px;bottom:10px;font-size:13px;color:var(--muted);background:#0009;padding:3px 9px;border-radius:8px;pointer-events:none;z-index:4}
+.stage .nogl{position:absolute;inset:0;display:grid;place-items:center;padding:20px;text-align:center;color:var(--muted)}
+.pins{position:absolute;inset:0;pointer-events:none;z-index:3}
+.pin{position:absolute;left:0;top:0;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:3px solid #fff;background:#e9e9ee center/cover no-repeat;padding:0;pointer-events:auto;box-shadow:0 0 0 3px #0006,0 0 16px var(--glow,#fff8);transition:opacity .2s,transform .15s;will-change:transform}
+.pin.hidden{opacity:0;pointer-events:none}
+.pin:hover,.pin:focus-visible{z-index:5}
+.pin:hover .tip,.pin:focus-visible .tip{opacity:1}
+.pin.seen::after{content:"";position:absolute;right:-6px;top:-6px;width:18px;height:18px;border-radius:50%;background:var(--good) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%2306301a' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat}
+.pin .tip{position:absolute;bottom:118%;left:50%;transform:translateX(-50%);white-space:nowrap;background:#000d;color:#fff;font:600 13px var(--body);padding:3px 8px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .15s}
+.plabel{position:absolute;left:0;top:0;font:700 12px var(--body);color:#cfd6ff;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap;transform:translate(-50%,10px)}
+.side{display:flex;flex-direction:column;gap:14px}
+.host{background:var(--panel);border:2px solid var(--line);border-radius:20px;padding:14px;display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}
+.host button.face{background:none;border:0;padding:0}
+.host button.face svg{width:96px;height:96px;display:block;transition:transform .2s}
+.host button.face:hover svg{transform:rotate(-6deg) scale(1.05)}
+.host button.face.talking svg{animation:talk .35s ease-in-out infinite alternate}
+@keyframes talk{to{transform:scale(1.06) rotate(2deg)}}
+.bubble{background:var(--ink);color:var(--space);border-radius:16px;padding:10px 12px;font-size:15.5px;position:relative;min-height:70px}
+.bubble::before{content:"";position:absolute;left:-10px;top:24px;border:10px solid transparent;border-right-color:var(--ink);border-left:0}
+.bubble b{font-family:var(--display);display:block;font-size:15px;opacity:.7}
+.hint{font-size:13px;color:var(--muted);grid-column:1/-1;margin-top:-4px}
+.list{background:var(--panel);border:2px solid var(--line);border-radius:20px;padding:14px}
+.list h3{font-size:18px;margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:2px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:99px;padding:3px 10px 3px 3px;font:600 14px var(--body);display:inline-flex;align-items:center;gap:6px}
+.chips button.seen{border-color:var(--good)}
+.chips img{width:26px;height:26px;border-radius:50%;background:#e9e9ee;object-fit:cover}
+.surprise{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;width:100%;border:0;border-radius:12px;padding:10px;font-size:16px;font-weight:600;background:var(--accent,var(--moon));color:var(--space)}
+.sneeze{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 50%,#d9824acc,#a8502099 60%,transparent 80%);opacity:0;transition:opacity .4s;z-index:6}
+.sneeze.go{opacity:1}
+
+/* Diary card */
+.modal{position:fixed;inset:0;background:#05081acc;display:none;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal.on{display:flex}
+.card{background:var(--panel);border:3px solid var(--accent,var(--moon));border-radius:24px;max-width:660px;width:100%;max-height:92vh;overflow:auto;padding:20px;position:relative;animation:pop .25s ease-out}
+@keyframes pop{from{transform:scale(.92);opacity:.3}}
+.card .x{position:absolute;right:12px;top:12px;border:0;background:var(--panel-2);color:var(--ink);width:38px;height:38px;border-radius:50%;display:grid;place-items:center}
+.card .head{display:flex;gap:14px;align-items:center;margin-bottom:10px;padding-right:44px}
+.card .big{width:74px;height:74px;border-radius:18px;flex:none;background:#e9e9ee center/cover no-repeat;border:2px solid var(--accent,var(--moon))}
+.card h2{font-size:24px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+.pill{display:inline-flex;align-items:center;gap:5px;font:700 12.5px var(--body);padding:3px 9px;border-radius:99px;background:var(--panel-2);color:var(--muted)}
+.pill.live{background:var(--good);color:#06301a}
+.pill.sleep{background:#3a2f5c;color:#d9cfff}
+.photo{position:relative;margin:0 0 12px;border-radius:16px;overflow:hidden;background:#e9e9ee}
+.photo img{display:block;width:100%;height:280px;object-fit:contain}
+.photo figcaption{font-size:12.5px;color:var(--muted);padding:5px 10px;background:var(--panel-2)}
+.phtabs{position:absolute;left:10px;top:10px;display:flex;gap:6px;z-index:2}
+.phtabs button{display:inline-flex;align-items:center;gap:5px;border:0;border-radius:99px;padding:5px 12px;font:700 13.5px var(--body);background:#000b;color:#fff}
+.phtabs button[aria-pressed="true"]{background:var(--accent,var(--moon));color:var(--space)}
+.diary{background:#fff8e6;color:#3b2a10;border-radius:14px;padding:14px 16px;font-size:16.5px;margin:0 0 10px;box-shadow:inset 0 0 0 1px #e8d9b0;background-image:repeating-linear-gradient(#fff8e6 0 27px,#e9dcc0 27px 28px)}
+.diary b{font-family:var(--display)}
+.rowbtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.readbtn{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:12px;padding:8px 14px;font-size:15px;font-weight:600;background:var(--panel-2);color:var(--ink);text-decoration:none}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:560px){.facts{grid-template-columns:1fr}}
+.fact{background:var(--panel-2);border-radius:14px;padding:10px;font-size:14.5px}
+.fact h4{margin:0 0 4px;font:600 14px var(--display);color:var(--accent,var(--moon));display:flex;gap:6px;align-items:center}
+.fun{margin-top:10px;background:#0006;border-left:4px solid var(--accent,var(--moon));padding:8px 12px;border-radius:8px;font-size:15px;display:flex;gap:8px}
+.fun .ic{color:var(--accent,var(--moon));margin-top:3px}
+.quiz{margin-top:12px;background:var(--panel-2);border-radius:14px;padding:12px}
+.quiz p{margin:0 0 8px;font-weight:800;display:flex;gap:8px;align-items:center}
+.quiz .opts{display:flex;flex-wrap:wrap;gap:8px}
+.quiz .opts button{border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:8px 12px;font:600 15px var(--body)}
+.quiz .opts button.right{background:var(--good);color:#06301a;border-color:var(--good)}
+.quiz .opts button.wrong{background:#7a2a3a;border-color:#c0475e}
+.quiz .res{margin-top:8px;font-size:15px;min-height:1.2em}
+.cardfoot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;margin-top:14px}
+.btn{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:12px;padding:10px 16px;font-size:16px;font-weight:600;background:var(--accent,var(--moon));color:var(--space)}
+.btn.ghost{background:var(--panel-2);color:var(--ink)}
+.cert{text-align:center;border-color:var(--moon)}
+.cert .seal{color:var(--moon)}
+.cert .seal .ic{width:72px;height:72px;stroke-width:1.5}
+.cert input{font:600 20px var(--display);text-align:center;padding:8px;border-radius:10px;border:2px solid var(--line);background:var(--panel-2);color:var(--ink);width:100%;max-width:340px;margin:8px 0}
+.cert .name{font:700 30px var(--display);color:var(--moon);min-height:40px}
+
+/* Timeline */
+.panel{background:var(--panel);border:2px solid var(--line);border-radius:20px;padding:18px}
+.panel h2{font-size:26px}
+.panel .sub{color:var(--muted);margin:4px 0 12px}
+.tlwrap{overflow-x:auto}
+#tl svg{display:block;min-width:760px;width:100%;height:auto}
+#tl .row{cursor:pointer}
+#tl .row:hover rect.hl{opacity:.12}
+#tl text{font-family:var(--body)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;color:var(--muted);font-size:14px;margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:8px;border-radius:4px;display:inline-block}
+
+/* Game */
+.gamebox{background:var(--panel);border:2px solid var(--mars);border-radius:20px;padding:14px}
+.gamehead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.gamehead h2{font-size:26px;color:var(--mars);display:flex;gap:10px;align-items:center}
+.hud{display:flex;flex-wrap:wrap;gap:8px}
+.hud .stat{background:var(--panel-2);border-radius:12px;padding:6px 10px;font-size:14px;min-width:120px}
+.hud .stat b{font-family:var(--display);font-size:17px;font-variant-numeric:tabular-nums}
+.meter{height:8px;background:#0006;border-radius:99px;overflow:hidden;margin-top:3px}
+.meter i{display:block;height:100%;transition:width .2s}
+.gamegrid{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:14px;align-items:start}
+@media (max-width:860px){.gamegrid{grid-template-columns:1fr}}
+.canvaswrap{position:relative;border-radius:14px;overflow:hidden;background:#000}
+#cv{display:block;width:100%;height:auto}
+.overlay{position:absolute;inset:0;background:#0b1026e8;display:flex;align-items:center;justify-content:center;padding:18px;text-align:center}
+.overlay.hide{display:none}
+.overlay .inner{max-width:500px}
+.overlay h3{font-size:26px;color:var(--mars);margin-bottom:8px}
+.overlay p{margin:6px 0}
+.log{background:var(--panel-2);border-radius:14px;padding:12px;font-size:15px;min-height:160px}
+.log h3{font-size:16px;color:var(--mars);margin-bottom:6px;display:flex;gap:7px;align-items:center}
+.dpad{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,52px);gap:6px;justify-content:center;margin-top:12px}
+.dpad button{border:0;border-radius:12px;background:var(--panel-2);color:var(--ink);display:grid;place-items:center}
+.dpad button .ic{width:26px;height:26px}
+.dpad button:active{background:var(--mars)}
+.dpad .u{grid-column:2}.dpad .l{grid-column:1;grid-row:2}.dpad .d{grid-column:2;grid-row:2}.dpad .r{grid-column:3;grid-row:2}
+.targets{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.targets span{display:inline-flex;align-items:center;gap:5px;font:700 13px var(--body);padding:3px 9px;border-radius:99px;background:#0006;color:var(--muted)}
+.targets span.got{background:var(--good);color:#06301a}
+
+/* About */
+.about{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:860px){.about{grid-template-columns:1fr}}
+.about .panel{font-size:16px}
+.about .panel.wide{grid-column:1/-1}
+.about h3{font-size:20px;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.about ul{margin:0;padding-left:20px}
+.about li{margin:4px 0}
+.mapgrid{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:6px 14px;font-size:15.5px}
+.mapgrid b{color:var(--moon);font-family:var(--display);font-weight:600}
+.srcs{columns:2;column-gap:28px;font-size:15px}
+@media (max-width:640px){.srcs{columns:1}}
+.srcs li{break-inside:avoid}
+.statrow{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 4px}
+.stat-t{background:var(--panel-2);border-radius:14px;padding:10px 14px;min-width:120px}
+.stat-t b{display:block;font:700 28px var(--display);font-variant-numeric:tabular-nums}
+.stat-t span{color:var(--muted);font-size:14px}
+footer{color:var(--muted);font-size:13.5px;text-align:center;padding:18px 0 8px}
+@media (max-width:520px){.pin{width:38px;height:38px;margin:-19px 0 0 -19px}}
+@media (prefers-reduced-motion:reduce){.card{animation:none}.host button.face.talking svg{animation:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-mars" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="10" r="1.6"/><circle cx="14.5" cy="14.5" r="2"/></symbol>
+  <symbol id="i-orbit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-20 12 12)"/></symbol>
+  <symbol id="i-time" viewBox="0 0 24 24"><path d="M4 6h10M4 12h16M4 18h7"/></symbol>
+  <symbol id="i-game" viewBox="0 0 24 24"><rect x="2.5" y="7.5" width="19" height="10" rx="5"/><path d="M7.5 10.5v4M5.5 12.5h4"/><circle cx="15.5" cy="11.5" r="1" fill="currentColor" stroke="none"/><circle cx="18" cy="14" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h3l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h3l5-4v14l-5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></symbol>
+  <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.3" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-sleep" viewBox="0 0 24 24"><path d="M13 4h7l-7 7h7M4 12h6l-6 7h6"/></symbol>
+  <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M8 8a5.7 5.7 0 0 0 0 8M16 8a5.7 5.7 0 0 1 0 8M5.2 5.2a9.6 9.6 0 0 0 0 13.6M18.8 5.2a9.6 9.6 0 0 1 0 13.6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7l2-3h4l2 3"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+  <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+  <symbol id="i-battery" viewBox="0 0 24 24"><rect x="3" y="7" width="16" height="10" rx="2"/><path d="M22 10.5v3M6.5 10v4M9.5 10v4"/></symbol>
+  <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 9h11a3 3 0 1 0-3-3M3 15h15a3 3 0 1 1-3 3M3 12h8"/></symbol>
+  <symbol id="i-wheel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3.5v6M12 14.5v6M3.5 12h6M14.5 12h6"/></symbol>
+  <symbol id="i-radio" viewBox="0 0 24 24"><path d="M12 12v9M8 21h8"/><circle cx="12" cy="10" r="2"/><path d="M8 6a5.7 5.7 0 0 0 0 8M16 6a5.7 5.7 0 0 1 0 8"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+  <symbol id="i-medal" viewBox="0 0 24 24"><circle cx="12" cy="15" r="5.5"/><path d="M8.5 10.7L6 3h4l2 5 2-5h4l-2.5 7.7"/><path d="M12 12.5l.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></symbol>
+  <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3M11 8.5v5M8.5 11h5"/></symbol>
+  <symbol id="i-tap" viewBox="0 0 24 24"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11l4.6.9a2 2 0 0 1 1.6 2.2l-.6 4.4a2.5 2.5 0 0 1-2.5 2.2H11a2.5 2.5 0 0 1-2-1l-3.4-4.5a1.5 1.5 0 0 1 2.2-2z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+  <symbol id="i-rock" viewBox="0 0 24 24"><path d="M3.5 18l3-7 5-3.5 5 2 4 8.5z"/><path d="M9 11l2 3"/></symbol>
+  <symbol id="i-bang" viewBox="0 0 24 24"><path d="M12 2.5l2 5.5 5.5-2-2.5 5 5 2.5-5.5 1.5 1.5 5.5-5-3-3 5-1-5.5-5.5 1.5 3.5-4.5-4.5-3.5 5.5-.5z"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 0 1 6 4.8"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 2.5v3M15 2.5v3M9 18.5v3M15 18.5v3M2.5 9h3M2.5 15h3M18.5 9h3M18.5 15h3"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="9.5" r="2"/><path d="M21 16l-5.5-5.5L5 20"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M32 6c-12 0-20 9-20 21v26l5-4 5 5 5-5 5 5 5-5 5 5 5-5 5 4V27C52 15 44 6 32 6z" fill="#eef0ff"/>
+        <ellipse cx="25" cy="27" rx="4" ry="5" fill="#0b1026"/><ellipse cx="39" cy="27" rx="4" ry="5" fill="#0b1026"/>
+        <circle cx="26.2" cy="25.5" r="1.4" fill="#fff"/><circle cx="40.2" cy="25.5" r="1.4" fill="#fff"/>
+        <path d="M27 37q5 4 10 0" stroke="#0b1026" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M32 6V1.5" stroke="#ffd166" stroke-width="2.5" stroke-linecap="round"/><circle cx="32" cy="1.8" r="2" fill="#ffd166"/>
+        <path d="M44 10a10 10 0 0 1 6 6" stroke="#7fd4ff" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <h1>Ghost <span>Rovers</span></h1>
+        <p>Meet 20 NASA machines left on the Moon, on Mars and in deep space, and hear their stories</p>
+      </div>
+    </div>
+    <div class="topctl">
+      <button class="soundbtn" id="soundbtn" aria-pressed="true"></button>
+      <div class="counter" aria-live="polite">
+        Machines met: <b id="count">0 / 20</b>
+        <div class="bar"><i id="countbar"></i></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" data-v="moon" aria-selected="true"><svg class="ic"><use href="#i-moon"/></svg>Moon</button>
+    <button role="tab" data-v="mars" aria-selected="false"><svg class="ic"><use href="#i-mars"/></svg>Mars</button>
+    <button role="tab" data-v="deep" aria-selected="false"><svg class="ic"><use href="#i-orbit"/></svg>Deep Space</button>
+    <button role="tab" data-v="time" aria-selected="false"><svg class="ic"><use href="#i-time"/></svg>Timeline</button>
+    <button role="tab" data-v="game" class="game" aria-selected="false"><svg class="ic"><use href="#i-game"/></svg>Game: Spirit's Sand Trap</button>
+    <button role="tab" data-v="about" aria-selected="false"><svg class="ic"><use href="#i-info"/></svg>About &amp; Sources</button>
+  </nav>
+  <div class="hintbar" id="hintbar">
+    <span><svg class="ic"><use href="#i-rotate"/></svg>Drag to spin in 3D</span>
+    <span><svg class="ic"><use href="#i-zoom"/></svg>Scroll or pinch to zoom</span>
+    <span><svg class="ic"><use href="#i-tap"/></svg>Click a machine to hear its story</span>
+  </div>
+
+  <!-- MOON -->
+  <section class="view on" id="v-moon" style="--accent:var(--moon)">
+    <div class="stage" id="stage-moon"><div class="pins" id="pins-moon"></div><span class="label">3D Moon (pictures show real landing spots)</span></div>
+    <div class="side">
+      <div class="host">
+        <button class="face" data-host="moon" aria-label="Talk to Grandma Moon">
+          <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#e8e4d8"/><circle cx="30" cy="30" r="7" fill="#c9c4b5"/><circle cx="72" cy="66" r="9" fill="#c9c4b5"/><circle cx="66" cy="24" r="4" fill="#c9c4b5"/><circle cx="36" cy="46" r="5" fill="#333"/><circle cx="64" cy="46" r="5" fill="#333"/><circle cx="37.5" cy="44.5" r="1.6" fill="#fff"/><circle cx="65.5" cy="44.5" r="1.6" fill="#fff"/><path d="M26 40 q10 -8 20 0 M54 40 q10 -8 20 0" stroke="#999" stroke-width="2.5" fill="none"/><path d="M36 62 q14 12 28 0" stroke="#333" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="26" cy="58" r="6" fill="#f2b5a5" opacity=".7"/><circle cx="74" cy="58" r="6" fill="#f2b5a5" opacity=".7"/></svg>
+        </button>
+        <div class="bubble"><b>Grandma Moon</b><span id="say-moon"></span></div>
+        <div class="hint">Click Grandma Moon to hear a Moon fact.</div>
+      </div>
+      <div class="list">
+        <h3>Machines left on the Moon</h3>
+        <div class="chips" id="chips-moon"></div>
+        <button class="surprise" data-surprise="moon"><svg class="ic"><use href="#i-dice"/></svg>Surprise me!</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARS -->
+  <section class="view" id="v-mars" style="--accent:var(--mars)">
+    <div class="stage" id="stage-mars"><div class="pins" id="pins-mars"></div><div class="sneeze" id="sneeze"></div><span class="label">3D Mars (white caps are polar ice)</span></div>
+    <div class="side">
+      <div class="host">
+        <button class="face" data-host="mars" aria-label="Talk to Uncle Mars">
+          <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#d9683c"/><ellipse cx="50" cy="8" rx="16" ry="5" fill="#fff"/><circle cx="72" cy="30" r="6" fill="#b5502a"/><circle cx="26" cy="72" r="8" fill="#b5502a"/><circle cx="36" cy="44" r="5" fill="#2a1408"/><circle cx="64" cy="44" r="5" fill="#2a1408"/><circle cx="37.5" cy="42.5" r="1.6" fill="#fff"/><circle cx="65.5" cy="42.5" r="1.6" fill="#fff"/><path d="M28 36 l14 -4 M58 32 l14 4" stroke="#2a1408" stroke-width="3" stroke-linecap="round"/><ellipse cx="50" cy="56" rx="5" ry="4" fill="#b5502a"/><path d="M30 66 q20 -8 40 0 q-20 6 -40 0z" fill="#5a2a14"/></svg>
+        </button>
+        <div class="bubble"><b>Uncle Mars</b><span id="say-mars"></span></div>
+        <div class="hint">Click Uncle Mars. Careful, he might sneeze!</div>
+      </div>
+      <div class="list">
+        <h3>Machines resting on Mars</h3>
+        <div class="chips" id="chips-mars"></div>
+        <button class="surprise" data-surprise="mars"><svg class="ic"><use href="#i-dice"/></svg>Surprise me!</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEEP SPACE -->
+  <section class="view" id="v-deep" style="--accent:var(--deep)">
+    <div class="stage" id="stage-deep"><div class="pins" id="pins-deep"></div><span class="label">3D solar system. NOT to scale: real distances are much bigger!</span></div>
+    <div class="side">
+      <div class="host">
+        <button class="face" data-host="deep" aria-label="Talk to Captain Comet">
+          <svg viewBox="0 0 100 100"><path d="M8 20 L58 46 L48 62 Z" fill="#7fd4ff" opacity=".45"/><path d="M4 40 L54 52 L50 66 Z" fill="#b8a6ff" opacity=".45"/><circle cx="62" cy="58" r="30" fill="#cfefff"/><circle cx="52" cy="54" r="5" fill="#132044"/><circle cx="74" cy="54" r="5" fill="#132044"/><circle cx="53.5" cy="52.5" r="1.6" fill="#fff"/><circle cx="75.5" cy="52.5" r="1.6" fill="#fff"/><path d="M52 68 q11 9 22 0" stroke="#132044" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M44 34 h36 l-4 -10 h-28z" fill="#132044"/><circle cx="62" cy="28" r="3" fill="#ffd166"/></svg>
+        </button>
+        <div class="bubble"><b>Captain Comet</b><span id="say-deep"></span></div>
+        <div class="hint">Click Captain Comet for a space fact.</div>
+      </div>
+      <div class="list">
+        <h3>Machines drifting in deep space</h3>
+        <div class="chips" id="chips-deep"></div>
+        <button class="surprise" data-surprise="deep"><svg class="ic"><use href="#i-dice"/></svg>Surprise me!</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="view" id="v-time">
+    <div class="panel">
+      <h2>57 years of machines left behind</h2>
+      <p class="sub">Each bar runs from launch or landing to the last signal. Click any row to open that machine's diary.</p>
+      <div class="tlwrap"><div id="tl"></div></div>
+      <div class="legend">
+        <span><i style="background:var(--moon)"></i>Moon</span>
+        <span><i style="background:var(--mars)"></i>Mars</span>
+        <span><i style="background:var(--deep)"></i>Deep space</span>
+        <span><i style="background:var(--good)"></i>Still working today</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section class="view" id="v-game">
+    <div class="gamebox">
+      <div class="gamehead">
+        <h2><svg class="ic"><use href="#i-game"/></svg>Spirit's Sand Trap</h2>
+        <div class="hud">
+          <div class="stat"><svg class="ic"><use href="#i-battery"/></svg> Battery <b id="g-bat">100%</b><div class="meter"><i id="g-batbar" style="width:100%;background:var(--good)"></i></div></div>
+          <div class="stat"><svg class="ic"><use href="#i-wind"/></svg> Dust on panels <b id="g-dust">0%</b><div class="meter"><i id="g-dustbar" style="width:0;background:#c98a5a"></i></div></div>
+          <div class="stat"><svg class="ic"><use href="#i-wheel"/></svg> Drives <b id="g-moves">0</b></div>
+        </div>
+      </div>
+      <div class="gamegrid">
+        <div class="canvaswrap">
+          <canvas id="cv" width="640" height="384" aria-label="Game map of Gusev Crater on Mars"></canvas>
+          <div class="overlay" id="g-ov"><div class="inner" id="g-ovin"></div></div>
+        </div>
+        <div>
+          <div class="log" aria-live="polite">
+            <h3><svg class="ic"><use href="#i-radio"/></svg>Spirit's radio</h3>
+            <div id="g-log">Press <b>Start mission</b> to begin.</div>
+          </div>
+          <div class="targets" id="g-targets"></div>
+          <div class="dpad" aria-label="Drive controls">
+            <button class="u" data-dir="0,-1" aria-label="Drive up"><svg class="ic"><use href="#i-up"/></svg></button>
+            <button class="l" data-dir="-1,0" aria-label="Drive left"><svg class="ic"><use href="#i-left"/></svg></button>
+            <button class="d" data-dir="0,1" aria-label="Drive down"><svg class="ic"><use href="#i-down"/></svg></button>
+            <button class="r" data-dir="1,0" aria-label="Drive right"><svg class="ic"><use href="#i-arrow"/></svg></button>
+          </div>
+          <p style="text-align:center;color:var(--muted);font-size:13.5px;margin:8px 0 0">Keyboard: arrow keys or W A S D</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="view" id="v-about">
+    <div class="about">
+      <div class="panel wide">
+        <h2>Ghost Rovers: Abandoned, but not Forgotten</h2>
+        <p class="sub">Our project for the 2026 NASA Space Apps Challenge, "Abandoned but not Forgotten: Storytelling about NASA's Discarded Equipment on the Moon and Mars".</p>
+        <div class="statrow">
+          <div class="stat-t"><b>20</b><span>machines</span></div>
+          <div class="stat-t"><b>3</b><span>worlds: Moon, Mars, deep space</span></div>
+          <div class="stat-t"><b>1967–2024</b><span>years covered</span></div>
+          <div class="stat-t"><b>23</b><span>characters with their own voice</span></div>
+          <div class="stat-t"><b>10–14</b><span>age group</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3><svg class="ic"><use href="#i-target"/></svg>The challenge</h3>
+        <p>NASA has left rovers, landers and probes all over the solar system since the 1960s. Kids often hear only about today's missions. The challenge asks for a story-driven tool that introduces school-age space fans to this hardware and the science it made possible.</p>
+      </div>
+      <div class="panel">
+        <h3><svg class="ic"><use href="#i-bulb"/></svg>Our idea</h3>
+        <p>Every machine is a character that tells its own story, in its own voice. Kids spin a 3D Moon and Mars, find the "ghosts" at their real landing spots, read and hear their diaries, take a quiz, and live Spirit's real adventure in a game.</p>
+      </div>
+      <div class="panel wide">
+        <h3><svg class="ic"><use href="#i-check"/></svg>How Ghost Rovers meets the challenge</h3>
+        <div class="mapgrid">
+          <b>Story-driven</b><span>Each machine speaks in first person: "Dear Diary, I landed in 1967…". Hosts Grandma Moon, Uncle Mars and Captain Comet guide the way.</span>
+          <b>Real hardware, real places</b><span>20 machines from the challenge resource list, pinned at their real landing coordinates on 3D globes.</span>
+          <b>Engineering to science</b><span>Every diary card links "Why I was sent" to "What I found", like Spirit's broken wheel uncovering signs of ancient hot springs.</span>
+          <b>Show, don't list</b><span>In the game, kids drive Spirit, fight dust, lose a wheel and get stuck at Troy, just as it really happened.</span>
+          <b>Made for ages 10–14</b><span>Simple words, funny characters, quick quizzes, a timeline and a certificate for meeting all 20.</span>
+          <b>Accessible</b><span>Every diary is read aloud. Machines can be opened from the lists without using the 3D view. Works with keyboard, mouse and touch.</span>
+          <b>Voices that age</b><span>Voices change with age: 1960s–70s machines sound like old radio broadcasts, newer ones sound clear and fresh.</span>
+        </div>
+      </div>
+      <div class="panel wide">
+        <h3><svg class="ic"><use href="#i-book"/></svg>Data sources (NASA)</h3>
+        <ul class="srcs" id="srcs"></ul>
+      </div>
+      <div class="panel">
+        <h3><svg class="ic"><use href="#i-image"/></svg>Pictures</h3>
+        <ul>
+          <li><b>Real pictures</b>: mission photos and artwork collected by our team from the web.</li>
+          <li><b>3D model images</b>: made by our team with Meshy AI, using real hardware as reference.</li>
+          <li><b>Moon and Mars globes</b>: drawn by code at real map positions (maria, volcanoes, craters, ice caps).</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3><svg class="ic"><use href="#i-cpu"/></svg>Built with, and use of AI</h3>
+        <ul>
+          <li>HTML, CSS, JavaScript, three.js (3D) and the Web Audio API (sound effects).</li>
+          <li>Voices: Kokoro, an open-source text-to-speech model, with age effects added by our team.</li>
+          <li>AI help: Claude (Anthropic) helped write code and drafts; Meshy AI made the 3D model images.</li>
+          <li>Facts are based on the NASA and NSSDCA pages listed above.</li>
+        </ul>
+      </div>
+      <div class="panel wide">
+        <h3><svg class="ic"><use href="#i-users"/></svg>Team</h3>
+        <p>A team of young space explorers, aged 10 to 14, from Kerala, India.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>Ghost Rovers, NASA Space Apps Challenge 2026. NASA does not endorse this project.</footer>
+</div>
+
+<!-- Diary modal -->
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="d-name">
+  <div class="card" id="card">
+    <button class="x" id="d-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button>
+    <div class="head">
+      <div class="big" id="d-icon" aria-hidden="true"></div>
+      <div>
+        <h2 id="d-name"></h2>
+        <div class="meta" id="d-meta"></div>
+      </div>
+    </div>
+    <figure class="photo" id="d-photo" hidden><div class="phtabs" id="d-phtabs"></div><img id="d-img" alt=""><figcaption id="d-cap"></figcaption></figure>
+    <div class="diary" id="d-diary"></div>
+    <div class="rowbtns">
+      <button class="readbtn" id="d-read"><svg class="ic"><use href="#i-sound"/></svg>Hear my diary</button>
+      <a class="readbtn" id="d-src" href="#" target="_blank" rel="noopener"><svg class="ic"><use href="#i-link"/></svg><span></span></a>
+    </div>
+    <div class="facts">
+      <div class="fact"><h4><svg class="ic"><use href="#i-target"/></svg>Why I was sent</h4><div id="d-why"></div></div>
+      <div class="fact"><h4><svg class="ic"><use href="#i-search"/></svg>What I found</h4><div id="d-found"></div></div>
+      <div class="fact"><h4><svg class="ic"><use href="#i-pin"/></svg>Where I am now</h4><div id="d-now"></div></div>
+    </div>
+    <div class="fun"><svg class="ic"><use href="#i-bulb"/></svg><div id="d-fun"></div></div>
+    <div class="quiz">
+      <p><svg class="ic"><use href="#i-help"/></svg><span id="d-q"></span></p>
+      <div class="opts" id="d-opts"></div>
+      <div class="res" id="d-res"></div>
+    </div>
+    <div class="cardfoot">
+      <button class="btn ghost" id="d-game" hidden><svg class="ic"><use href="#i-game"/></svg>Play my story</button>
+      <span></span>
+      <button class="btn" id="d-next">Next machine<svg class="ic"><use href="#i-arrow"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<!-- Certificate -->
+<div class="modal" id="certm" role="dialog" aria-modal="true" aria-labelledby="c-title">
+  <div class="card cert">
+    <button class="x" id="c-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button>
+    <div class="seal"><svg class="ic"><use href="#i-medal"/></svg></div>
+    <h2 id="c-title">Official Ghost Rover Hunter</h2>
+    <p>You met all 20 machines that NASA left on the Moon, on Mars and in deep space. They are not junk. They are the footprints of exploration!</p>
+    <label for="c-in">Type your name for the certificate:</label><br>
+    <input id="c-in" maxlength="30" placeholder="Your name">
+    <div class="name" id="c-name"></div>
+    <p style="color:var(--muted);font-size:14px">Take a screenshot to keep it!</p>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script>
+const D = /*DATA*/;
+const GHOSTS = D.ghosts;
+const $ = s => document.querySelector(s);
+const ic = n => `<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const ACCENT = {moon:"#ffd166", mars:"#ff7a4d", deep:"#7fd4ff"};
+const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ================= SOUND ================= */
+let soundOn = true;
+try { soundOn = localStorage.getItem("gr-sound") !== "off"; } catch (e) {}
+let AC = null;
+function ac(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; } } if(AC.state==="suspended") AC.resume(); return AC; }
+function tone(f,dur,type,vol,when,slide){ const a=ac(); if(!a||!soundOn) return; const t=a.currentTime+(when||0); const o=a.createOscillator(), g=a.createGain(); o.type=type||"sine"; o.frequency.setValueAtTime(f,t); if(slide) o.frequency.exponentialRampToValueAtTime(slide,t+dur); g.gain.setValueAtTime(vol||.1,t); g.gain.exponentialRampToValueAtTime(.001,t+dur); o.connect(g).connect(a.destination); o.start(t); o.stop(t+dur+.05); }
+function noise(dur,vol,freq,when){ const a=ac(); if(!a||!soundOn) return; const t=a.currentTime+(when||0); const n=Math.floor(a.sampleRate*dur); const buf=a.createBuffer(1,n,a.sampleRate); const d=buf.getChannelData(0); for(let i=0;i<n;i++) d[i]=Math.random()*2-1; const s=a.createBufferSource(); s.buffer=buf; const fl=a.createBiquadFilter(); fl.type="bandpass"; fl.frequency.value=freq||800; const g=a.createGain(); g.gain.setValueAtTime(vol||.2,t); g.gain.exponentialRampToValueAtTime(.001,t+dur); s.connect(fl).connect(g).connect(a.destination); s.start(t); }
+const SFX = {
+  blip:()=>{ tone(660,.07,"sine",.06); tone(990,.09,"sine",.05,.06); },
+  right:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.2,"triangle",.11,i*.09)),
+  wrong:()=>tone(220,.3,"sawtooth",.06,0,130),
+  bonk:()=>tone(150,.15,"square",.09,0,70),
+  drive:()=>tone(170,.05,"square",.02),
+  sneeze:()=>{ tone(450,.3,"sine",.1,0,950); noise(.6,.4,1400,.3); },
+  whoosh:()=>noise(.9,.3,550),
+  clunk:()=>{ tone(90,.35,"square",.15,0,45); noise(.2,.35,280); },
+  star:()=>{ tone(880,.1,"triangle",.1); tone(1320,.18,"triangle",.1,.08); },
+  stuck:()=>tone(320,1.4,"sawtooth",.05,0,55),
+  fanfare:()=>[523,523,659,784,1047].forEach((f,i)=>tone(f,.28,"triangle",.11,i*.16)),
+  radio:()=>{ tone(1200,.05,"sine",.035); tone(1500,.05,"sine",.035,.08); }
+};
+/* A short radio signal before a machine talks. Its sound depends on the machine's age. */
+function ageSignal(year){
+  const a=ac(); if(!a||!soundOn) return 0;
+  if(year<1980){
+    noise(.7,.22,1500);
+    const t=a.currentTime, o=a.createOscillator(), l=a.createOscillator(), lg=a.createGain(), g=a.createGain();
+    o.type="sine"; o.frequency.value=420; l.frequency.value=7; lg.gain.value=35; l.connect(lg).connect(o.frequency);
+    g.gain.setValueAtTime(.08,t); g.gain.exponentialRampToValueAtTime(.001,t+.9); o.connect(g).connect(a.destination);
+    o.start(t); l.start(t); o.stop(t+.95); l.stop(t+.95); return 900;
+  }
+  if(year<2010){ tone(880,.11,"square",.04); tone(660,.11,"square",.04,.14); tone(990,.14,"square",.04,.28); return 520; }
+  [1400,1800,2300,2900].forEach((f,i)=>tone(f,.06,"sine",.05,i*.07,f*1.3)); return 360;
+}
+let clip=null, clipTok=0, talkingFace=null;
+function stopClip(){ clipTok++; if(clip){ try{ clip.pause(); }catch(e){} clip=null; } try{ speechSynthesis.cancel(); }catch(e){} if(talkingFace){ talkingFace.classList.remove("talking"); talkingFace=null; } }
+function fallbackSpeak(text){
+  try{
+    const u=new SpeechSynthesisUtterance(text.replace(/<[^>]+>/g," "));
+    const vs=speechSynthesis.getVoices();
+    const v=vs.find(x=>/natural|neural|online|google/i.test(x.name)&&/^en/i.test(x.lang))||vs.find(x=>/^en/i.test(x.lang));
+    if(v) u.voice=v; u.rate=.95; speechSynthesis.speak(u);
+  }catch(e){}
+}
+/* Plays a pre-recorded voice clip from audio/<name>.mp3 */
+function playClip(name, text, opts){
+  opts=opts||{};
+  stopClip(); if(!soundOn){ opts.onEnd&&setTimeout(opts.onEnd,1200); return; }
+  const tok=clipTok;
+  const wait=opts.year? ageSignal(opts.year): 0;
+  if(opts.face){ talkingFace=opts.face; opts.face.classList.add("talking"); }
+  setTimeout(()=>{
+    if(tok!==clipTok) return;
+    const a=new Audio("audio/"+name+".mp3"); clip=a;
+    a.onended=()=>{ if(tok!==clipTok) return; if(talkingFace){ talkingFace.classList.remove("talking"); talkingFace=null; } opts.onEnd&&opts.onEnd(); };
+    a.play().catch(()=>{ if(tok===clipTok){ fallbackSpeak(text||""); opts.onEnd&&setTimeout(opts.onEnd,1500); } });
+  }, wait + (opts.delay||0));
+}
+function setSound(on, fromClick){
+  soundOn=on; try{ localStorage.setItem("gr-sound", on?"on":"off"); }catch(e){}
+  const b=$("#soundbtn"); b.innerHTML=(on? ic("sound")+"Voices &amp; sound: on" : ic("mute")+"Voices &amp; sound: off"); b.setAttribute("aria-pressed", on?"true":"false");
+  if(!on) stopClip(); else if(fromClick) SFX.blip();
+}
+$("#soundbtn").onclick=()=>setSound(!soundOn, true);
+setSound(soundOn);
+
+/* ================= STATE ================= */
+let seen=new Set();
+try{ JSON.parse(localStorage.getItem("gr-seen")||"[]").forEach(x=>seen.add(x)); }catch(e){}
+function save(){ try{ localStorage.setItem("gr-seen", JSON.stringify([...seen])); }catch(e){} }
+const byId = Object.fromEntries(GHOSTS.map(g=>[g.id,g]));
+
+/* ================= 3D WORLDS ================= */
+const HAS3D = (()=>{ try{ if(!window.THREE) return false; const c=document.createElement("canvas"); return !!(c.getContext("webgl")||c.getContext("experimental-webgl")); }catch(e){ return false; } })();
+function ll2v(lat,lon,r){ const u=(lon+180)/360, phi=u*Math.PI*2, th=(90-lat)*Math.PI/180; return new THREE.Vector3(-Math.cos(phi)*Math.sin(th)*r, Math.cos(th)*r, Math.sin(phi)*Math.sin(th)*r); }
+function rng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+function eqx(lon,W){ return (lon+180)/360*W; } function eqy(lat,H){ return (90-lat)/180*H; }
+function blob(ctx,lat,lon,rlat,rlon,color,alpha,W,H){
+  const x=eqx(lon,W), y=eqy(lat,H), ry=rlat/180*H, rx=Math.min(W/2, rlon/360*W/Math.max(.25,Math.cos(lat*Math.PI/180)));
+  for(const dx of [0,-W,W]){ ctx.save(); ctx.translate(x+dx,y); ctx.scale(rx/ry,1); const g=ctx.createRadialGradient(0,0,0,0,0,ry); g.addColorStop(0,color); g.addColorStop(.6,color); g.addColorStop(1,"rgba(0,0,0,0)"); ctx.globalAlpha=alpha; ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,ry,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+}
+function speckle(ctx,W,H,n,r,cols,seed){ const R=rng(seed); for(let i=0;i<n;i++){ ctx.globalAlpha=.08+R()*.12; ctx.fillStyle=cols[Math.floor(R()*cols.length)]; const x=R()*W, y=R()*H; ctx.beginPath(); ctx.arc(x,y,r*(.3+R()),0,7); ctx.fill(); } ctx.globalAlpha=1; }
+function craters(ctx,W,H,n,maxR,seed,dark,light){ const R=rng(seed); for(let i=0;i<n;i++){ const lat=(R()*2-1)*88, x=R()*W, y=eqy(lat,H); const r=(Math.pow(R(),3)*maxR+1.2); const sx=1/Math.max(.3,Math.cos(lat*Math.PI/180)); ctx.save(); ctx.translate(x,y); ctx.scale(sx,1); ctx.globalAlpha=.35; ctx.fillStyle=dark; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill(); ctx.globalAlpha=.4; ctx.strokeStyle=light; ctx.lineWidth=Math.max(1,r*.25); ctx.beginPath(); ctx.arc(-r*.15,-r*.15,r,Math.PI*.9,Math.PI*1.9); ctx.stroke(); ctx.restore(); } ctx.globalAlpha=1; }
+function moonTexture(){
+  const W=2048,H=1024,c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
+  x.fillStyle="#a3a099"; x.fillRect(0,0,W,H);
+  speckle(x,W,H,9000,10,["#8d8a83","#b5b2aa","#9a978f","#c2bfb7"],7);
+  const maria=[[33,-16,10,13],[28,17.5,7,8],[8.5,31.4,7,9],[17,59,5,6],[-7.8,51.3,7,6],[-15,35,4,4],[-21,-16.6,7,9],[-24.4,-38.6,4,4],[20,-55,15,12],[0,-50,12,10],[35,-45,10,10],[-5,-30,8,8],[56,0,4,30],[13,4,3,4],[-10,-23,4,4],[27,147,3,3],[-19,-93,4,4],[-2,10,4,6]];
+  maria.forEach(m=>blob(x,m[0],m[1],m[2],m[3],"#5d5a55",.78,W,H));
+  craters(x,W,H,2600,14,11,"#6f6c66","#d6d3cb");
+  // bright rayed craters Tycho and Copernicus
+  [[-43.3,-11.2,60],[9.6,-20,40]].forEach(([la,lo,len])=>{ const cx=eqx(lo,W), cy=eqy(la,H); const R=rng(len); x.strokeStyle="#e9e6de"; x.lineCap="round"; for(let i=0;i<28;i++){ const a=R()*Math.PI*2, l=len*(.5+R()*1.2); x.globalAlpha=.05+R()*.06; x.lineWidth=1.5+R()*3; x.beginPath(); x.moveTo(cx,cy); x.lineTo(cx+Math.cos(a)*l*1.8,cy+Math.sin(a)*l); x.stroke(); } const gg=x.createRadialGradient(cx,cy,0,cx,cy,14); gg.addColorStop(0,"rgba(245,242,235,.95)"); gg.addColorStop(1,"rgba(245,242,235,0)"); x.globalAlpha=1; x.fillStyle=gg; x.beginPath(); x.arc(cx,cy,14,0,7); x.fill(); });
+  return c;
+}
+function marsTexture(){
+  const W=2048,H=1024,c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
+  x.fillStyle="#c1653a"; x.fillRect(0,0,W,H);
+  speckle(x,W,H,7000,16,["#b35a32","#cf7a4a","#a9512c","#d9895a"],5);
+  const dark=[[8,69,12,10],[46,-30,10,18],[-25,-40,10,25],[-30,-155,8,20],[-22,145,8,22],[-20,100,8,15],[-3,0,4,10],[-8,20,5,25],[60,90,8,40],[-55,30,8,40]];
+  dark.forEach(m=>blob(x,m[0],m[1],m[2],m[3],"#6d3520",.6,W,H));
+  [[-42,70,12,16],[-50,-43,6,8],[5,-110,18,22],[25,147,7,8]].forEach(m=>blob(x,m[0],m[1],m[2],m[3],"#e4a479",.55,W,H));
+  craters(x,W,H,1600,10,21,"#8f4426","#e09a6c");
+  // Olympus Mons and Tharsis volcanoes
+  [[18.65,-133.8,26],[11.8,-104.5,10],[1.5,-112.9,10],[-8.3,-120.1,11],[25,147,8]].forEach(([la,lo,r])=>{ const cx=eqx(lo,W), cy=eqy(la,H); const g=x.createRadialGradient(cx-r*.3,cy-r*.3,1,cx,cy,r); g.addColorStop(0,"#efb48a"); g.addColorStop(.75,"#cd7c4c"); g.addColorStop(1,"rgba(120,50,25,.0)"); x.fillStyle=g; x.beginPath(); x.arc(cx,cy,r,0,7); x.fill(); x.fillStyle="#7b3a1f"; x.beginPath(); x.arc(cx,cy,r*.22,0,7); x.fill(); });
+  // Valles Marineris canyon
+  const vm=[[-6,-96],[-7,-88],[-8.5,-80],[-7.5,-74],[-9,-67],[-10,-59],[-9,-53],[-11,-47],[-13,-41],[-11,-36],[-8,-31]];
+  const trace=()=>{ x.beginPath(); vm.forEach(([la,lo],i)=>{ const px=eqx(lo,W), py=eqy(la,H); i?x.lineTo(px,py):x.moveTo(px,py); }); x.stroke(); };
+  x.lineCap="round"; x.lineJoin="round"; x.strokeStyle="#e8a77c"; x.globalAlpha=.5; x.lineWidth=9; x.translate(0,-2); trace(); x.translate(0,2);
+  x.strokeStyle="#4e1f10"; x.globalAlpha=.8; x.lineWidth=5; trace(); x.globalAlpha=1;
+  // polar caps
+  const n=x.createLinearGradient(0,0,0,eqy(76,H)); n.addColorStop(0,"#ffffff"); n.addColorStop(.75,"#f4ece6"); n.addColorStop(1,"rgba(244,236,230,0)"); x.fillStyle=n; x.fillRect(0,0,W,eqy(76,H));
+  const s=x.createLinearGradient(0,H,0,eqy(-80,H)); s.addColorStop(0,"#ffffff"); s.addColorStop(.7,"#f4ece6"); s.addColorStop(1,"rgba(244,236,230,0)"); x.fillStyle=s; x.fillRect(0,eqy(-80,H),W,H);
+  return c;
+}
+function starfield(scene,count,radius){
+  const R=rng(99), pos=new Float32Array(count*3);
+  for(let i=0;i<count;i++){ const v=new THREE.Vector3(R()*2-1,R()*2-1,R()*2-1).normalize().multiplyScalar(radius*(.8+R()*.2)); pos.set([v.x,v.y,v.z],i*3); }
+  const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:radius/300,sizeAttenuation:true,transparent:true,opacity:.8})));
+}
+function glowSprite(color,size){
+  const c=document.createElement("canvas"); c.width=c.height=128; const x=c.getContext("2d"); const g=x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,color); g.addColorStop(.25,color); g.addColorStop(1,"rgba(0,0,0,0)"); x.fillStyle=g; x.fillRect(0,0,128,128);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); s.scale.set(size,size,1); return s;
+}
+class World{
+  constructor(kind){
+    this.kind=kind; this.stage=$("#stage-"+kind); this.pinsEl=$("#pins-"+kind); this.pins=[]; this.labels=[]; this.running=false; this.anim=null;
+    const r=this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+    r.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); this.stage.prepend(r.domElement);
+    this.scene=new THREE.Scene(); this.camera=new THREE.PerspectiveCamera(kind==="deep"?45:35,1,.1,2000);
+    this.controls=new THREE.OrbitControls(this.camera,r.domElement); this.controls.enableDamping=true; this.controls.enablePan=false; this.controls.rotateSpeed=.6;
+    this.controls.autoRotate=!reduceMotion; this.controls.addEventListener("start",()=>{ this.controls.autoRotate=false; this.cancelFly(); });
+    this.clock=new THREE.Clock();
+    if(kind==="deep") this.buildDeep(); else this.buildGlobe();
+    new ResizeObserver(()=>this.resize()).observe(this.stage); this.resize();
+  }
+  buildGlobe(){
+    const tex=new THREE.CanvasTexture(this.kind==="moon"?moonTexture():marsTexture()); tex.anisotropy=4;
+    if(THREE.sRGBEncoding) tex.encoding=THREE.sRGBEncoding;
+    this.renderer.outputEncoding=THREE.sRGBEncoding;
+    const mat=new THREE.MeshStandardMaterial({map:tex,bumpMap:tex,bumpScale:this.kind==="moon"?.025:.018,roughness:1,metalness:0});
+    this.globe=new THREE.Mesh(new THREE.SphereGeometry(1,96,64),mat); this.scene.add(this.globe);
+    const atm=glowSprite(this.kind==="mars"?"rgba(255,140,90,.35)":"rgba(200,210,255,.18)",2.6); this.scene.add(atm);
+    starfield(this.scene,1500,60);
+    this.scene.add(new THREE.AmbientLight(0xffffff,.35));
+    const sun=new THREE.DirectionalLight(0xffffff,1.25); sun.position.set(2.5,1.2,2); this.camera.add(sun); this.scene.add(this.camera);
+    const startLon=this.kind==="moon"?5:-40, startLat=this.kind==="moon"?8:10;
+    this.camera.position.copy(ll2v(startLat,startLon,3.75)); this.controls.minDistance=1.7; this.controls.maxDistance=6; this.controls.autoRotateSpeed=.5;
+    GHOSTS.filter(g=>g.w===this.kind).forEach(g=>this.addPin(g,()=>ll2v(g.lat,g.lon,1.01),true));
+  }
+  buildDeep(){
+    const S=this.scene; starfield(S,2500,600);
+    this.renderer.outputEncoding=THREE.sRGBEncoding;
+    S.add(new THREE.AmbientLight(0xffffff,.35)); S.add(new THREE.PointLight(0xfff2cc,1.6,0));
+    const sun=new THREE.Mesh(new THREE.SphereGeometry(4,48,32),new THREE.MeshBasicMaterial({color:0xffcf4a})); S.add(sun); S.add(glowSprite("rgba(255,200,80,.9)",22));
+    const ring=(r,color,ecc,cx)=>{ const pts=[]; for(let i=0;i<=180;i++){ const a=i/180*Math.PI*2; pts.push(new THREE.Vector3((cx||0)+Math.cos(a)*r,0,Math.sin(a)*r*(ecc||1))); } const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color,transparent:true,opacity:.55})); S.add(l); return l; };
+    const planet=(r,color,rad)=>{ const m=new THREE.Mesh(new THREE.SphereGeometry(rad,32,24),new THREE.MeshStandardMaterial({color,roughness:.9})); S.add(m); return {m,r}; };
+    ring(14,0x3b4688); ring(20,0x5a3b4a); ring(40,0x3b4688); ring(52,0x3b4688);
+    const erosOrbit=ring(17.5,0x6b5a8a,.95,1.8); erosOrbit.rotation.x=.12;
+    this.bodies={ earth:planet(14,0x4aa3ff,.9), mars:planet(20,0xff7a4d,.6), jupiter:planet(40,0xd8a46a,2.3), saturn:planet(52,0xe8cf8d,1.9), ceres:planet(28.5,0xb0aca4,.35), eros:planet(17.5,0x9a8f80,.25) };
+    const sring=new THREE.Mesh(new THREE.RingGeometry(2.6,4.2,48),new THREE.MeshBasicMaterial({color:0xe8cf8d,side:THREE.DoubleSide,transparent:true,opacity:.6})); sring.rotation.x=Math.PI/2.4; this.bodies.saturn.m.add(sring);
+    const R=rng(3), bp=new Float32Array(1800*3); for(let i=0;i<1800;i++){ const a=R()*Math.PI*2, rr=25+R()*6; bp.set([Math.cos(a)*rr,(R()-.5)*1.2,Math.sin(a)*rr],i*3); }
+    const bg=new THREE.BufferGeometry(); bg.setAttribute("position",new THREE.BufferAttribute(bp,3)); S.add(new THREE.Points(bg,new THREE.PointsMaterial({color:0x9aa0bd,size:.22})));
+    this.ang={earth:.6,mars:2.2,jupiter:3.9,saturn:.45,ceres:4.4,eros:3.1};
+    this.speed={earth:.03,mars:.016,jupiter:.0025,saturn:.001,ceres:.0065,eros:.021};
+    const path=(pts,color)=>{ const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(...p))),new THREE.LineDashedMaterial({color,dashSize:1.2,gapSize:1,transparent:true,opacity:.8})); l.computeLineDistances(); S.add(l); };
+    const p10=[], p11=[];
+    for(let i=0;i<=40;i++){ const t=i/40; const r=14+t*54, a=.6+t*2.9; p10.push([Math.cos(a)*r,0,Math.sin(a)*r]); }
+    for(let i=0;i<=40;i++){ const t=i/40; const r=14+t*54, a=.6+t*-.2+ (t>.55? (t-.55)*-1.2:0); p11.push([Math.cos(a)*r,t>.55?(t-.55)*40:0,Math.sin(a)*r]); }
+    path(p10,0x7fd4ff); path(p11,0xb8a6ff);
+    const end10=new THREE.Vector3(...p10[40]), end11=new THREE.Vector3(...p11[40]);
+    this.camera.position.set(0,78,118); this.controls.minDistance=25; this.controls.maxDistance=200; this.controls.autoRotateSpeed=.25;
+    const B=this.bodies;
+    this.addPin(byId.kepler,()=>{ const a=this.ang.earth-1.1; return new THREE.Vector3(Math.cos(a)*14,0,Math.sin(a)*14); });
+    this.addPin(byId.near,()=>B.eros.m.position.clone().add(new THREE.Vector3(0,.8,0)));
+    this.addPin(byId.dawn,()=>B.ceres.m.position.clone().add(new THREE.Vector3(0,.8,0)));
+    this.addPin(byId.pioneer10,()=>end10);
+    this.addPin(byId.pioneer11,()=>end11);
+    const L=(t,f)=>{ const el=document.createElement("div"); el.className="plabel"; el.textContent=t; this.pinsEl.appendChild(el); this.labels.push({el,f}); };
+    L("Sun",()=>new THREE.Vector3(0,-4,0)); L("Earth",()=>B.earth.m.position); L("Mars",()=>B.mars.m.position); L("Jupiter",()=>B.jupiter.m.position.clone().add(new THREE.Vector3(0,-2,0)));
+    L("Saturn",()=>B.saturn.m.position.clone().add(new THREE.Vector3(0,-2,0))); L("Ceres",()=>B.ceres.m.position); L("Eros",()=>B.eros.m.position);
+    this.updateBodies(0);
+  }
+  updateBodies(dt){
+    const B=this.bodies; if(!B) return;
+    for(const k in this.speed){ if(!reduceMotion) this.ang[k]+=this.speed[k]*dt; }
+    const set=(k)=>{ const a=this.ang[k], r=B[k].r; B[k].m.position.set(Math.cos(a)*r,0,Math.sin(a)*r); };
+    ["earth","mars","jupiter","saturn","ceres"].forEach(set);
+    const a=this.ang.eros; B.eros.m.position.set(1.8+Math.cos(a)*17.5,Math.sin(a)*17.5*.95*Math.sin(.12),Math.sin(a)*17.5*.95*Math.cos(.12));
+    B.saturn.m.rotation.y+=dt*.1;
+  }
+  addPin(g,posFn,occlude){
+    const b=document.createElement("button"); b.className="pin"; b.dataset.id=g.id;
+    b.style.backgroundImage=`url(img/icon/${g.id}.webp)`; b.style.setProperty("--glow",g.status==="live"?"#5be08f":ACCENT[g.w]);
+    b.innerHTML=`<span class="tip">${g.short}</span>`; b.setAttribute("aria-label",g.name); b.onclick=()=>openDiary(g.id);
+    this.pinsEl.appendChild(b); this.pins.push({el:b,posFn,occlude,g});
+  }
+  resize(){ const w=this.stage.clientWidth, h=this.stage.clientHeight; if(!w||!h) return; this.renderer.setSize(w,h,false); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); this.w=w; this.h=h; }
+  project(v){ const p=v.clone().project(this.camera); return {x:(p.x*.5+.5)*this.w, y:(-p.y*.5+.5)*this.h, z:p.z}; }
+  frame(){
+    if(!this.running) return; this.anim=requestAnimationFrame(()=>this.frame());
+    const dt=Math.min(.05,this.clock.getDelta());
+    if(this.fly){ const t=Math.min(1,(performance.now()-this.fly.t0)/this.fly.dur); const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; this.camera.position.copy(this.fly.from.clone().lerp(this.fly.to,e).normalize().multiplyScalar(this.fly.dist)); if(t>=1){ const cb=this.fly.cb; this.fly=null; cb&&cb(); } }
+    this.updateBodies(dt); this.controls.update(); this.renderer.render(this.scene,this.camera);
+    const cam=this.camera.position;
+    for(const p of this.pins){ const v=p.posFn(); let vis=true; if(p.occlude){ vis=v.clone().normalize().dot(cam.clone().sub(v))>0.02; } const s=this.project(v); if(s.z>1) vis=false; p.el.classList.toggle("hidden",!vis); p.el.style.transform=`translate(${s.x}px,${s.y}px)`; }
+    for(const l of this.labels){ const s=this.project(l.f()); l.el.style.transform=`translate(${s.x}px,${s.y}px) translate(-50%,10px)`; l.el.style.display=s.z>1?"none":""; }
+  }
+  start(){ if(this.running) return; this.running=true; this.clock.getDelta(); this.resize(); this.frame(); }
+  stop(){ this.running=false; if(this.anim) cancelAnimationFrame(this.anim); }
+  cancelFly(){ if(this.fly){ this.fly=null; } }
+  flyTo(g,cb){
+    if(this.kind==="deep"||!g.lat&&g.lat!==0){ cb&&cb(); return; }
+    this.controls.autoRotate=false;
+    const dist=Math.max(2.6,Math.min(3.75,this.camera.position.length()));
+    this.fly={from:this.camera.position.clone().normalize(),to:ll2v(g.lat,g.lon,1).normalize(),dist,t0:performance.now(),dur:reduceMotion?1:700,cb};
+  }
+}
+const worlds={};
+function ensureWorld(k){
+  if(!HAS3D){ const s=$("#stage-"+k); if(!s.querySelector(".nogl")) s.insertAdjacentHTML("beforeend",'<div class="nogl">3D view needs WebGL, which this browser does not offer. Use the list of machines to explore.</div>'); return null; }
+  if(!worlds[k]) worlds[k]=new World(k); return worlds[k];
+}
+
+/* ================= LISTS, HOSTS ================= */
+function buildChips(){
+  GHOSTS.forEach(g=>{ const c=document.createElement("button"); c.dataset.id=g.id; c.innerHTML=`<img src="img/icon/${g.id}.webp" alt="">`; c.append(g.short); c.onclick=()=>focusAndOpen(g.id); $("#chips-"+g.w).appendChild(c); });
+}
+function refreshSeen(){
+  document.querySelectorAll("[data-id]").forEach(el=>el.classList.toggle("seen",seen.has(el.dataset.id)));
+  $("#count").textContent=seen.size+" / "+GHOSTS.length; $("#countbar").style.width=(seen.size/GHOSTS.length*100)+"%";
+}
+const hostIdx={moon:0,mars:0,deep:0};
+function talk(w,next){
+  if(next) hostIdx[w]=(hostIdx[w]+1)%D.hosts[w].length;
+  const i=hostIdx[w], line=D.hosts[w][i]; $("#say-"+w).textContent=line;
+  if(!next) return;
+  const face=document.querySelector(`[data-host="${w}"]`);
+  if(w==="mars"&&/^Ah-choo/.test(line)){ const s=$("#sneeze"); s.classList.add("go"); setTimeout(()=>s.classList.remove("go"),900); SFX.sneeze(); playClip(`host_${w}_${i}`,line,{face,delay:800}); }
+  else { SFX.blip(); playClip(`host_${w}_${i}`,line,{face}); }
+}
+document.querySelectorAll("[data-host]").forEach(b=>b.onclick=()=>talk(b.dataset.host,true));
+["moon","mars","deep"].forEach(w=>talk(w,false));
+
+/* ================= DIARY ================= */
+let current=null;
+function focusAndOpen(id){ const g=byId[id]; const wv=worlds[g.w]; if(wv&&currentView===g.w&&g.w!=="deep") wv.flyTo(g,()=>openDiary(id)); else openDiary(id); }
+function showPic(g,kind){
+  const has3d=!D.no3d.includes(g.id); if(kind==="m3d"&&!has3d) kind="photo";
+  $("#d-img").src="img/"+(kind==="photo"?"photo":"3d")+"/"+g.id+".webp";
+  $("#d-img").alt=(kind==="photo"?"Real picture of ":"3D model of ")+g.name;
+  let cap=kind==="photo"?"Real picture (mission photo or artwork, found online)":"3D model image (made by our team with Meshy AI)";
+  if(g.id==="eagle") cap+=kind==="m3d"?". Shows the whole lander as it landed; only the gold bottom half is still on the Moon.":". Today only the gold bottom half is still on the Moon.";
+  $("#d-cap").textContent=cap;
+  const t=$("#d-phtabs"); t.innerHTML="";
+  [["photo","camera","Real picture"],["m3d","cube","3D model"]].forEach(([k,i,label])=>{ if(k==="m3d"&&!has3d) return; const b=document.createElement("button"); b.innerHTML=ic(i)+label; b.setAttribute("aria-pressed",k===kind?"true":"false"); b.onclick=()=>{ SFX.blip(); showPic(g,k); }; t.appendChild(b); });
+  $("#d-photo").hidden=false;
+}
+function openDiary(id){
+  const g=byId[id]; current=g;
+  $("#card").style.setProperty("--accent",ACCENT[g.w]);
+  $("#d-icon").style.backgroundImage=`url(img/icon/${g.id}.webp)`;
+  $("#d-name").textContent=g.name;
+  $("#d-meta").innerHTML=`<span class="pill">${ic("cal")}${g.year}</span><span class="pill">${ic("pin")}${g.place}</span><span class="pill ${g.status==="live"?"live":"sleep"}">${ic(g.status==="live"?"live":"sleep")}${g.st}</span>`;
+  showPic(g,"photo");
+  $("#d-diary").innerHTML=g.diary;
+  $("#d-why").textContent=g.why; $("#d-found").textContent=g.found; $("#d-now").textContent=g.now;
+  $("#d-fun").innerHTML="<b>Fun fact:</b> "+g.fun;
+  const src=D.sources[g.src]; $("#d-src").href=src[1]; $("#d-src").querySelector("span").textContent="Learn more: "+src[0];
+  $("#d-q").textContent="Quick quiz: "+g.q;
+  const o=$("#d-opts"); o.innerHTML=""; $("#d-res").textContent="";
+  g.o.forEach((t,i)=>{ const b=document.createElement("button"); b.textContent=t; b.onclick=()=>{ o.querySelectorAll("button").forEach((x,j)=>{ x.disabled=true; if(j===g.a) x.classList.add("right"); }); if(i!==g.a) b.classList.add("wrong"); (i===g.a?SFX.right:SFX.wrong)(); $("#d-res").innerHTML=(i===g.a?"<b>Correct!</b> ":"<b>Nice try!</b> ")+g.ex; }; o.appendChild(b); });
+  $("#d-game").hidden=!g.game;
+  $("#modal").classList.add("on"); $("#d-close").focus();
+  SFX.blip(); playClip("diary_"+g.id,g.diary,{year:g.year,delay:150});
+  const was=seen.size; seen.add(id); save(); refreshSeen();
+  if(was<GHOSTS.length&&seen.size===GHOSTS.length) certPending=true;
+}
+let certPending=false;
+function closeModal(){ $("#modal").classList.remove("on"); stopClip(); if(certPending){ certPending=false; $("#certm").classList.add("on"); $("#c-in").focus(); SFX.fanfare(); playClip("misc_cert",D.misc.cert,{delay:900}); } }
+$("#d-close").onclick=closeModal;
+$("#modal").onclick=e=>{ if(e.target.id==="modal") closeModal(); };
+$("#d-read").onclick=()=>{ if(!soundOn) setSound(true); playClip("diary_"+current.id,current.diary,{year:current.year}); };
+$("#d-next").onclick=()=>{ const list=GHOSTS.filter(x=>x.w===current.w); openDiary(list[(list.indexOf(current)+1)%list.length].id); };
+$("#d-game").onclick=()=>{ closeModal(); show("game"); };
+document.querySelectorAll("[data-surprise]").forEach(b=>b.onclick=()=>{ const w=b.dataset.surprise; let list=GHOSTS.filter(x=>x.w===w&&!seen.has(x.id)); if(!list.length) list=GHOSTS.filter(x=>x.w===w); focusAndOpen(list[Math.floor(Math.random()*list.length)].id); });
+$("#c-close").onclick=()=>{ $("#certm").classList.remove("on"); stopClip(); };
+$("#c-in").oninput=e=>$("#c-name").textContent=e.target.value;
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); $("#certm").classList.remove("on"); } });
+
+/* ================= TIMELINE ================= */
+function buildTimeline(){
+  const y0=1965, y1=2027, L=230, R=930, rowH=32, top=40;
+  const X=y=>L+(y-y0)/(y1-y0)*(R-L);
+  const groups=[["moon","Moon"],["mars","Mars"],["deep","Deep space"]];
+  let rows=[], yy=top;
+  groups.forEach(([w,label])=>{ rows.push({head:label,w,y:yy}); yy+=26; GHOSTS.filter(g=>g.w===w).forEach(g=>{ rows.push({g,y:yy}); yy+=rowH; }); yy+=8; });
+  const H=yy+10;
+  let s=`<svg viewBox="0 0 960 ${H}" role="img" aria-label="Timeline of the 20 machines from 1967 to 2024">`;
+  s+=`<defs><clipPath id="cc"><circle cx="0" cy="0" r="12"/></clipPath></defs>`;
+  for(let y=1965;y<=2025;y+=5){ const x=X(y); s+=`<line x1="${x}" y1="${top-8}" x2="${x}" y2="${H-6}" stroke="#2c356e" stroke-width="1"/><text x="${x}" y="${top-14}" fill="#aab0d6" font-size="12" text-anchor="middle">${y}</text>`; }
+  const nx=X(2026); s+=`<line x1="${nx}" y1="${top-8}" x2="${nx}" y2="${H-6}" stroke="#5be08f" stroke-width="1.5" stroke-dasharray="4 4"/><text x="${nx}" y="${H-0}" fill="#5be08f" font-size="12" text-anchor="middle">today</text>`;
+  rows.forEach(r=>{
+    if(r.head){ s+=`<text x="10" y="${r.y+14}" fill="${ACCENT[r.w]}" font-size="15" font-weight="800" font-family="Fredoka, sans-serif">${r.head}</text>`; return; }
+    const g=r.g, cy=r.y+rowH/2, col=ACCENT[g.w], end=g.end==="now"?2026:g.end;
+    s+=`<g class="row" data-tl="${g.id}" tabindex="0" role="button" aria-label="${g.name}, ${g.year} to ${g.end==="now"?"today":g.end}">`;
+    s+=`<rect class="hl" x="4" y="${r.y+1}" width="952" height="${rowH-2}" rx="8" fill="#ffffff" opacity="0"/>`;
+    s+=`<g transform="translate(26 ${cy})"><circle r="13" fill="#e9e9ee"/><image href="img/icon/${g.id}.webp" x="-12" y="-12" width="24" height="24" clip-path="url(#cc)"/></g>`;
+    s+=`<text x="46" y="${cy+5}" fill="#f3f1ff" font-size="14" font-weight="700">${g.short}</text>`;
+    const x1=X(g.year), x2=Math.max(X(end),x1+8);
+    s+=`<rect x="${x1}" y="${cy-6}" width="${x2-x1}" height="12" rx="6" fill="${g.end==="now"?"#5be08f":col}"/>`;
+    const lab=g.year===end?g.year:g.year+"–"+(g.end==="now"?"still working today":end);
+    s+= x2>800 ? `<text x="${x1-8}" y="${cy+4.5}" fill="#aab0d6" font-size="12" text-anchor="end">${lab}</text>` : `<text x="${x2+8}" y="${cy+4.5}" fill="#aab0d6" font-size="12">${lab}</text>`;
+    s+=`</g>`;
+  });
+  s+="</svg>"; $("#tl").innerHTML=s;
+  document.querySelectorAll("[data-tl]").forEach(el=>{ el.onclick=()=>openDiary(el.dataset.tl); el.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openDiary(el.dataset.tl); } }; });
+}
+
+/* ================= SOURCES ================= */
+function buildSources(){
+  const used={}; GHOSTS.forEach(g=>{ (used[g.src]=used[g.src]||[]).push(g.short); });
+  $("#srcs").innerHTML=Object.entries(used).map(([k,names])=>{ const [t,u]=D.sources[k]; return `<li><a href="${u}" target="_blank" rel="noopener">${t}</a> <span style="color:var(--muted)">(${names.join(", ")})</span></li>`; }).join("")
+    + `<li><a href="https://nssdc.gsfc.nasa.gov/" target="_blank" rel="noopener">NASA Space Science Data Coordinated Archive (NSSDCA)</a> <span style="color:var(--muted)">(final resting places and mission status)</span></li>`;
+}
+
+/* ================= TABS ================= */
+let currentView="moon";
+function show(v){
+  stopClip(); currentView=v;
+  document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.v===v?"true":"false"));
+  $("#hintbar").style.display=["moon","mars","deep"].includes(v)?"":"none";
+  if(location.hash!=="#"+v) history.replaceState(null,"","#"+v);
+  Object.entries(worlds).forEach(([k,w])=>{ if(k!==v) w.stop(); });
+  if(["moon","mars","deep"].includes(v)){ const w=ensureWorld(v); if(w) w.start(); }
+  if(v==="game") drawGame();
+}
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>show(b.dataset.v));
+
+/* ================= GAME: Spirit's Sand Trap ================= */
+const MAP=["####################","#L....#.....hhh....#","#.....#..C..hhh.##.#","#..A..#.....hhh....#","#.....##.####......#","#..........#...H...#","####..B....#.......#","#.........##..###..#","#.###..........S...#","#...#...####.......#","#.......#......#.T.#","####################"];
+const TS=32, COLS=20, ROWS=12;
+const TNAME={A:"Adirondack",B:"Bonneville Crater",C:"Columbia Hills",H:"Home Plate",S:"Silica soil"};
+let G; const cv=$("#cv"), ctx=cv.getContext("2d");
+const speck=[]; { const R=rng(4); for(let i=0;i<260;i++) speck.push([R()*640,R()*384,R()*2+.5]); }
+function newGame(){ G={x:1,y:1,dir:1,bat:100,dust:0,moves:0,got:new Set(),broken:false,trail:new Set(),running:false,stuck:false,sink:0,devil:{x:9,y:7},t:0}; renderTargets(); updateHud(); }
+function renderTargets(){ const el=$("#g-targets"); el.innerHTML=""; ["A","B","C","H","S"].forEach(k=>{ const s=document.createElement("span"); s.innerHTML=(G.got.has(k)?ic("check"):ic("star"))+((k==="S"&&!G.broken)?"Secret target":TNAME[k]); if(G.got.has(k)) s.className="got"; el.appendChild(s); }); }
+function log(html,key,icon,onEnd){ $("#g-log").innerHTML=(icon?ic(icon)+" ":"")+html; if(key){ SFX.radio(); playClip("game_"+key,html,{delay:120,onEnd}); } }
+function tile(x,y){ return MAP[y][x]; }
+function updateHud(){ $("#g-bat").textContent=Math.round(G.bat)+"%"; const bb=$("#g-batbar"); bb.style.width=G.bat+"%"; bb.style.background=G.bat<25?"#ff5d6c":G.bat<50?"#ffd166":"var(--good)"; $("#g-dust").textContent=Math.round(G.dust)+"%"; $("#g-dustbar").style.width=G.dust+"%"; $("#g-moves").textContent=G.moves; }
+function overlay(html){ $("#g-ovin").innerHTML=html; $("#g-ov").classList.remove("hide"); }
+function hideOverlay(){ $("#g-ov").classList.add("hide"); }
+function intro(){
+  newGame(); drawGame();
+  overlay(`<h3>You are Spirit</h3><p>It's January 2004. You just bounced onto Mars inside giant airbags, in Gusev Crater.</p><p><b>Your mission:</b> drive to the science targets, keep your battery up, and reach the place called <b>Troy</b>.</p><p>Dust on your solar panels makes charging slower. Touch a dust devil to clean them. This really happened to Spirit!</p><p><button class="btn" id="g-start" style="--accent:var(--mars)">${ic("play")}Start mission</button></p>`);
+  $("#g-start").onclick=()=>{ hideOverlay(); G.running=true; log("<b>Hello, Mission Control!</b> Spirit here. I landed safely! Drive me to the science targets. Use the arrows.","start","radio"); cv.focus(); };
+}
+function move(dx,dy){
+  if(!G||!G.running||G.stuck) return;
+  const cost=G.broken?6:3;
+  if(G.bat<cost){ log("<b>Low power!</b> I need to rest and let the Sun charge me. Wait a few seconds…",null,"battery"); return; }
+  const nx=G.x+dx, ny=G.y+dy, t=tile(nx,ny); if(dx) G.dir=dx;
+  if(t==="#"){ SFX.bonk(); log("Bonk! A big rock is in the way. Rovers drive around rocks, not over them!",null,"rock"); return; }
+  if(t==="T"&&!["A","B","C","H","S"].every(k=>G.got.has(k))){ const k=G.broken&&["A","B","C","H"].every(k=>G.got.has(k))?"notyet2":"notyet"; log(D.game[k],k,"radio"); return; }
+  SFX.drive(); if(G.broken) G.trail.add(G.x+","+G.y);
+  G.x=nx; G.y=ny; G.moves++; G.bat=Math.max(0,G.bat-cost); G.dust=Math.min(85,G.dust+1.2);
+  if(t==="h") log("Climbing the Columbia Hills… uphill takes effort!",null,"up");
+  if("ABCHS".includes(t)&&!(t==="S"&&!G.broken)&&!G.got.has(t)){
+    G.got.add(t); SFX.star();
+    const breakNow=G.got.size===3&&!G.broken;
+    if(breakNow) G.breaking=true;
+    log(D.game[t],t,"star",breakNow?breakWheel:null);
+    if(breakNow) setTimeout(breakWheel,14000);
+    renderTargets();
+  }
+  if(G.x===G.devil.x&&G.y===G.devil.y) cleanPanels();
+  if(t==="T") getStuck();
+  updateHud(); drawGame();
+}
+function breakWheel(){ if(!G.breaking||G.broken) return; G.broken=true; G.breaking=false; renderTargets(); SFX.clunk(); log(D.game.wheel,"wheel","bang"); drawGame(); }
+function cleanPanels(){ if(G.dust<5) return; G.dust=0; SFX.whoosh(); log(D.game.devil,"devil","wind"); }
+function getStuck(){ G.stuck=true; G.running=false; SFX.stuck(); log(D.game.troy,"troy","wheel"); let n=0; const iv=setInterval(()=>{ G.sink=Math.min(10,G.sink+.6); drawGame(true); if(++n>40){ clearInterval(iv); storyEnd(); } },70); }
+function storyEnd(){
+  let i=0;
+  const step=()=>{
+    if(i<D.story.length){ overlay(`<h3>Spirit's story ${i+1}/${D.story.length}</h3><p>${D.story[i]}</p><p><button class="btn" id="g-nx" style="--accent:var(--mars)">${i<D.story.length-1?"Next"+ic("arrow"):"Finish"+ic("check")}</button></p>`); $("#g-nx").onclick=()=>{ i++; step(); }; $("#g-nx").focus(); playClip("story_"+i,D.story[i]); }
+    else { seen.add("spirit"); save(); refreshSeen(); SFX.fanfare(); playClip("misc_complete",D.misc.complete,{delay:900});
+      overlay(`<h3>Mission complete!</h3><p>You found <b>${G.got.size} of 5</b> science targets in <b>${G.moves}</b> drives.</p><p>You lived Spirit's real adventure: a broken wheel, dust devils, a big discovery and the sand trap at Troy.</p><p><b>Remember:</b> Spirit isn't junk. It's a monument to exploration on Mars.</p><p style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" id="g-again" style="--accent:var(--mars)">${ic("rotate")}Play again</button><button class="btn ghost" id="g-map">${ic("mars")}Back to Mars</button></p>`);
+      $("#g-again").onclick=intro; $("#g-map").onclick=()=>show("mars"); }
+  }; step();
+}
+setInterval(()=>{ if(!G||!G.running) return; G.t++; G.bat=Math.min(100,G.bat+.9*(1-G.dust/100));
+  if(G.t%6===0){ const opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>{ const t=tile(G.devil.x+dx,G.devil.y+dy); return t!=="#"&&t!=="T"; }); const [dx,dy]=opts[Math.floor(Math.random()*opts.length)]; G.devil.x+=dx; G.devil.y+=dy; if(G.x===G.devil.x&&G.y===G.devil.y) cleanPanels(); }
+  updateHud(); drawGame(); },250);
+function starPath(c,cx,cy,r){ c.beginPath(); for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rr=i%2?r*.45:r; c.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr); } c.closePath(); }
+function drawGame(shake){
+  if(!G) newGame(); ctx.save(); if(shake) ctx.translate(Math.random()*4-2,0);
+  ctx.fillStyle="#c97a4b"; ctx.fillRect(0,0,640,384);
+  speck.forEach(([x,y,r])=>{ ctx.fillStyle="rgba(120,55,25,.35)"; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); });
+  for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
+    const t=tile(x,y), px=x*TS, py=y*TS;
+    if(t==="h"){ ctx.fillStyle="rgba(110,50,22,.35)"; ctx.fillRect(px,py,TS,TS); }
+    if(t==="#"){ ctx.fillStyle="#6e3a20"; ctx.beginPath(); ctx.ellipse(px+16,py+18,14,11,0,0,7); ctx.fill(); ctx.fillStyle="#8b4c2b"; ctx.beginPath(); ctx.ellipse(px+13,py+14,8,6,0,0,7); ctx.fill(); }
+    if(t==="T"){ ctx.fillStyle="#efd9b0"; ctx.beginPath(); ctx.ellipse(px+16,py+16,22,15,0,0,7); ctx.fill(); ctx.fillStyle="#5a2a14"; ctx.font="bold 11px Nunito, sans-serif"; ctx.textAlign="center"; ctx.fillText("TROY",px+16,py-4); }
+    if(t==="L"){ ctx.fillStyle="rgba(255,255,255,.25)"; ctx.beginPath(); ctx.arc(px+16,py+16,13,0,7); ctx.fill(); }
+    if("ABCH".includes(t)||(t==="S"&&G.broken)){
+      if(G.got.has(t)){ ctx.fillStyle="#5be08f"; ctx.beginPath(); ctx.arc(px+16,py+16,10,0,7); ctx.fill(); ctx.strokeStyle="#06301a"; ctx.lineWidth=3; ctx.lineCap="round"; ctx.beginPath(); ctx.moveTo(px+11,py+16); ctx.lineTo(px+15,py+20); ctx.lineTo(px+22,py+12); ctx.stroke(); }
+      else { ctx.shadowColor="#ffd166"; ctx.shadowBlur=12; ctx.fillStyle="#ffd166"; starPath(ctx,px+16,py+16,11); ctx.fill(); ctx.shadowBlur=0; }
+    }
+  }
+  G.trail.forEach(k=>{ const [x,y]=k.split(",").map(Number); ctx.fillStyle="rgba(255,255,255,.55)"; ctx.fillRect(x*TS+6,y*TS+14,20,4); });
+  if(!G.stuck){ const dx=G.devil.x*TS+16, dy=G.devil.y*TS+16; ctx.strokeStyle="rgba(240,220,190,.85)"; ctx.lineWidth=2; for(let i=0;i<4;i++){ ctx.beginPath(); ctx.ellipse(dx,dy-10+i*7,4+i*3,2+i,0,0,7); ctx.stroke(); } }
+  const rx=G.x*TS+16, ry=G.y*TS+16+G.sink*.6;
+  ctx.save(); ctx.translate(rx,ry); ctx.scale(G.dir,1);
+  ctx.fillStyle="#222"; [-11,0,11].forEach(o=>{ ctx.beginPath(); ctx.arc(o,9,4.5,0,7); ctx.fill(); });
+  if(G.broken){ ctx.fillStyle="#ff4d5e"; ctx.beginPath(); ctx.arc(11,9,4.5,0,7); ctx.fill(); }
+  ctx.fillStyle="#d9d9e3"; ctx.fillRect(-13,-2,26,9); ctx.fillStyle="#2b3f8f"; ctx.fillRect(-15,-6,30,5);
+  ctx.fillStyle="rgba(201,122,75,"+(G.dust/100)+")"; ctx.fillRect(-15,-6,30,5);
+  ctx.fillStyle="#d9d9e3"; ctx.fillRect(6,-16,3,11); ctx.fillRect(4,-19,8,4); ctx.fillStyle="#111"; ctx.fillRect(9,-18,2,2);
+  ctx.restore();
+  if(G.sink>0){ ctx.fillStyle="#efd9b0"; ctx.beginPath(); ctx.ellipse(rx,ry+11,18,5,0,0,7); ctx.fill(); }
+  ctx.restore();
+}
+document.addEventListener("keydown",e=>{ if(currentView!=="game") return; const k={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0],W:[0,-1],S:[0,1],A:[-1,0],D:[1,0]}[e.key]; if(k){ e.preventDefault(); move(...k); } });
+document.querySelectorAll(".dpad button").forEach(b=>b.onclick=()=>{ const [dx,dy]=b.dataset.dir.split(",").map(Number); move(dx,dy); });
+
+/* ================= START ================= */
+buildChips(); buildTimeline(); buildSources(); refreshSeen(); intro();
+const startV=(location.hash||"").slice(1);
+show(["moon","mars","deep","time","game","about"].includes(startV)?startV:"moon");
+window.addEventListener("hashchange",()=>{ const v=location.hash.slice(1); if(v!==currentView&&["moon","mars","deep","time","game","about"].includes(v)) show(v); });
+</script>
+</body>
+</html>
