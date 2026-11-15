@@ -24,8 +24,11 @@ The 3D views and voices need the page to be served from a web address, not opene
 - `img/photo/` – real pictures, `img/3d/` – Meshy AI 3D model images, `img/icon/` – small icons
 - `build/` – source content (`data.py`) and scripts used to build the page and record the voices
 
-## Use of AI
-Claude (Anthropic) helped write code and drafts. Meshy AI made the 3D model images. Voices were made with Kokoro, an open-source text-to-speech model.
+## Use of AI (Super Intelligence) disclosure
+- **Code and text:** written with help from Claude (Anthropic). Facts are based on the NASA and NSSDCA pages listed on the About & Sources page.
+- **Images:** everything in `img/3d/` (and `img/photo/kepler.webp`) is AI-generated with Meshy AI. Each image has a visible "AI-generated image (Meshy AI)" watermark. Flags and mission markings were removed.
+- **Audio:** everything in `audio/` is AI-generated speech made with Kokoro, an open-source text-to-speech model. Each MP3 says so in its metadata (artist and comment tags).
+- **Not AI:** the Moon and Mars globes, the game graphics and the icons in `img/icon/` (made from real mission pictures).
 
 ## Team
 A team of young space explorers, aged 10 to 14, from Kerala, India.
